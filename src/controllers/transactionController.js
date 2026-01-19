@@ -66,7 +66,20 @@ exports.getTransaction = async (req, res) => {
 // @access  Private
 exports.createTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.create(req.body);
+    // Auto-determine category based on transactionType if not provided
+    const transactionData = { ...req.body };
+    if (!transactionData.category) {
+      const categoryMap = {
+        'payment_received': 'revenue',
+        'sale': 'revenue',
+        'payment_made': 'expense',
+        'purchase': 'expense',
+        'expense': 'expense'
+      };
+      transactionData.category = categoryMap[transactionData.transactionType] || 'revenue';
+    }
+
+    const transaction = await Transaction.create(transactionData);
 
     // Update customer outstanding balance if applicable
     if (transaction.customer) {
