@@ -72,7 +72,7 @@ const customerSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-customerSchema.index({ gstin: 1 });
+// Note: gstin already has a unique index from the schema definition
 customerSchema.index({ name: 1 });
 
 module.exports = mongoose.model('Customer', customerSchema);

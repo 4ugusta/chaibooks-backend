@@ -4,7 +4,7 @@ const connectDB = async () => {
   try {
     const options = {
       maxPoolSize: 10, // Maintain up to 10 socket connections (free tier friendly)
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000, // Increased to 30 seconds for better reliability
       socketTimeoutMS: 45000,
     };
 
@@ -18,7 +18,7 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected');
+      console.log('MongoDB disconnected. Attempting to reconnect...');
     });
 
     // Graceful shutdown
@@ -30,7 +30,8 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    process.exit(1);
+    console.error('Failed to connect to MongoDB. Server will continue but database operations will fail.');
+    // Don't exit - let the server run so health checks work
   }
 };
 

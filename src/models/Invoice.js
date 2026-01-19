@@ -140,7 +140,7 @@ invoiceSchema.pre('save', async function(next) {
 });
 
 // Index for faster queries
-invoiceSchema.index({ invoiceNumber: 1 });
+// Note: invoiceNumber already has a unique index from the schema definition
 invoiceSchema.index({ customer: 1 });
 invoiceSchema.index({ invoiceDate: -1 });
 invoiceSchema.index({ invoiceType: 1 });
