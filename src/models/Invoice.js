@@ -103,9 +103,31 @@ const invoiceSchema = new mongoose.Schema({
     enum: ['paid', 'unpaid', 'partial', 'overdue'],
     default: 'unpaid'
   },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'cheque', 'upi', 'neft', 'rtgs', 'card'],
+  payments: [{
+    amount: {
+      type: Number,
+      required: true
+    },
+    method: {
+      type: String,
+      enum: ['cash', 'cheque', 'upi', 'neft', 'rtgs', 'card'],
+      required: true
+    },
+    date: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
+    reference: String,
+    notes: String
+  }],
+  amountPaid: {
+    type: Number,
+    default: 0
+  },
+  balanceDue: {
+    type: Number,
+    default: 0
   },
   notes: {
     type: String
@@ -128,7 +150,7 @@ const invoiceSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Auto-increment invoice number
+// Auto-increment invoice number and initialize balanceDue
 invoiceSchema.pre('save', async function(next) {
   if (this.isNew && !this.invoiceNumber) {
     const prefix = this.invoiceType === 'sale' ? 'INV' : 'PUR';
@@ -136,6 +158,12 @@ invoiceSchema.pre('save', async function(next) {
     const count = await this.constructor.countDocuments({ invoiceType: this.invoiceType });
     this.invoiceNumber = `${prefix}${year}${String(count + 1).padStart(5, '0')}`;
   }
+
+  // Initialize balanceDue on creation
+  if (this.isNew) {
+    this.balanceDue = this.grandTotal;
+  }
+
   next();
 });
 

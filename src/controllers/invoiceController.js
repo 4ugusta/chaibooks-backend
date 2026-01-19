@@ -163,8 +163,8 @@ exports.createInvoice = async (req, res) => {
       amountInWords: numberToWords(finalTotal)
     });
 
-    // Update customer outstanding balance
-    if (req.body.paymentStatus === 'unpaid' || req.body.paymentStatus === 'partial') {
+    // Update customer outstanding balance (only for unpaid invoices)
+    if (invoiceType === 'sale') {
       customerDoc.outstandingBalance += finalTotal;
       await customerDoc.save();
     }
@@ -219,35 +219,79 @@ exports.deleteInvoice = async (req, res) => {
   }
 };
 
-// @desc    Update invoice payment status
+// @desc    Update invoice payment status (record payment)
 // @route   PATCH /api/invoices/:id/payment
 // @access  Private
 exports.updatePaymentStatus = async (req, res) => {
   try {
-    const { paymentStatus, paymentMethod } = req.body;
+    const { amount, method, date, reference, notes } = req.body;
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
+    // Validate payment amount
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Payment amount must be greater than 0' });
+    }
+
+    const currentBalance = invoice.balanceDue || invoice.grandTotal - (invoice.amountPaid || 0);
+
+    if (amount > currentBalance) {
+      return res.status(400).json({
+        message: `Payment amount (₹${amount}) cannot exceed balance due (₹${currentBalance})`
+      });
+    }
+
+    // Add payment record
+    const payment = {
+      amount: parseFloat(amount),
+      method: method || 'cash',
+      date: date ? new Date(date) : new Date(),
+      reference: reference || '',
+      notes: notes || ''
+    };
+
+    if (!invoice.payments) {
+      invoice.payments = [];
+    }
+    invoice.payments.push(payment);
+
+    // Calculate total amount paid
+    const oldAmountPaid = invoice.amountPaid || 0;
+    const newAmountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+    invoice.amountPaid = newAmountPaid;
+
+    // Calculate balance due
+    invoice.balanceDue = invoice.grandTotal - newAmountPaid;
+
+    // Automatically update payment status based on amounts
     const oldStatus = invoice.paymentStatus;
-    invoice.paymentStatus = paymentStatus;
-    invoice.paymentMethod = paymentMethod;
+    if (invoice.balanceDue <= 0) {
+      invoice.paymentStatus = 'paid';
+      invoice.balanceDue = 0; // Ensure no negative balance
+    } else if (invoice.amountPaid > 0) {
+      invoice.paymentStatus = 'partial';
+    } else {
+      invoice.paymentStatus = 'unpaid';
+    }
 
     // Update customer outstanding balance
     const customer = await Customer.findById(invoice.customer);
     if (customer) {
-      if (oldStatus === 'unpaid' && paymentStatus === 'paid') {
-        customer.outstandingBalance -= invoice.grandTotal;
-      } else if (oldStatus === 'paid' && paymentStatus === 'unpaid') {
-        customer.outstandingBalance += invoice.grandTotal;
-      }
+      // Subtract the payment amount from outstanding balance
+      customer.outstandingBalance -= payment.amount;
       await customer.save();
     }
 
     await invoice.save();
-    res.json(invoice);
+
+    const populatedInvoice = await Invoice.findById(invoice._id)
+      .populate('customer')
+      .populate('items.item');
+
+    res.json(populatedInvoice);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
