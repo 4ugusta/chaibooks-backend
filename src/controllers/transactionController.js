@@ -1,5 +1,6 @@
 const Transaction = require('../models/Transaction');
 const Customer = require('../models/Customer');
+const Invoice = require('../models/Invoice');
 
 // @desc    Get all transactions
 // @route   GET /api/transactions
@@ -81,6 +82,42 @@ exports.createTransaction = async (req, res) => {
 
     const transaction = await Transaction.create(transactionData);
 
+    // If transaction is linked to an invoice, add payment record to the invoice
+    if (transaction.reference === 'invoice' && transaction.referenceId) {
+      const invoice = await Invoice.findById(transaction.referenceId);
+
+      if (invoice) {
+        // Create payment record
+        const payment = {
+          amount: transaction.amount,
+          method: transaction.paymentMethod || 'other',
+          date: transaction.date,
+          reference: transaction.referenceNumber || '',
+          notes: transaction.description || '',
+          transactionId: transaction._id
+        };
+
+        // Add payment to invoice
+        invoice.payments.push(payment);
+
+        // Recalculate invoice payment totals
+        invoice.amountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+        invoice.balanceDue = invoice.grandTotal - invoice.amountPaid;
+
+        // Update payment status
+        if (invoice.balanceDue <= 0) {
+          invoice.paymentStatus = 'paid';
+          invoice.balanceDue = 0;
+        } else if (invoice.amountPaid > 0) {
+          invoice.paymentStatus = 'partial';
+        } else {
+          invoice.paymentStatus = 'unpaid';
+        }
+
+        await invoice.save();
+      }
+    }
+
     // Update customer outstanding balance if applicable
     if (transaction.customer) {
       const customer = await Customer.findById(transaction.customer);
@@ -129,11 +166,58 @@ exports.updateTransaction = async (req, res) => {
 // @access  Private
 exports.deleteTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.findByIdAndDelete(req.params.id);
+    const transaction = await Transaction.findById(req.params.id);
 
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
+
+    // If transaction is linked to an invoice, remove the payment from the invoice
+    if (transaction.reference === 'invoice' && transaction.referenceId) {
+      const invoice = await Invoice.findById(transaction.referenceId);
+
+      if (invoice) {
+        // Find and remove the payment linked to this transaction
+        const paymentIndex = invoice.payments.findIndex(
+          p => p.transactionId && p.transactionId.toString() === transaction._id.toString()
+        );
+
+        if (paymentIndex !== -1) {
+          invoice.payments.splice(paymentIndex, 1);
+
+          // Recalculate invoice payment totals
+          invoice.amountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+          invoice.balanceDue = invoice.grandTotal - invoice.amountPaid;
+
+          // Update payment status
+          if (invoice.balanceDue <= 0) {
+            invoice.paymentStatus = 'paid';
+            invoice.balanceDue = 0;
+          } else if (invoice.amountPaid > 0) {
+            invoice.paymentStatus = 'partial';
+          } else {
+            invoice.paymentStatus = 'unpaid';
+          }
+
+          await invoice.save();
+        }
+      }
+    }
+
+    // Update customer outstanding balance if applicable
+    if (transaction.customer) {
+      const customer = await Customer.findById(transaction.customer);
+      if (customer) {
+        if (transaction.transactionType === 'payment_received') {
+          customer.outstandingBalance += transaction.amount;
+        } else if (transaction.transactionType === 'payment_made') {
+          customer.outstandingBalance -= transaction.amount;
+        }
+        await customer.save();
+      }
+    }
+
+    await Transaction.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
