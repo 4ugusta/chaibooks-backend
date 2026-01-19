@@ -8,7 +8,7 @@ const Customer = require('../models/Customer');
 // @access  Private
 exports.getSalesReport = async (req, res) => {
   try {
-    const { startDate, endDate, customer, groupBy = 'day' } = req.query;
+    const { startDate, endDate, customer } = req.query;
 
     const matchQuery = { invoiceType: 'sale', status: { $ne: 'cancelled' } };
 
@@ -20,42 +20,21 @@ exports.getSalesReport = async (req, res) => {
 
     if (customer) matchQuery.customer = customer;
 
-    let groupByFormat;
-    switch (groupBy) {
-      case 'month':
-        groupByFormat = { $dateToString: { format: '%Y-%m', date: '$invoiceDate' } };
-        break;
-      case 'year':
-        groupByFormat = { $dateToString: { format: '%Y', date: '$invoiceDate' } };
-        break;
-      default:
-        groupByFormat = { $dateToString: { format: '%Y-%m-%d', date: '$invoiceDate' } };
-    }
-
-    const salesData = await Invoice.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: groupByFormat,
-          totalSales: { $sum: '$grandTotal' },
-          totalInvoices: { $sum: 1 },
-          totalGST: { $sum: '$totalGst.total' },
-          avgInvoiceValue: { $avg: '$grandTotal' }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+    // Get individual invoices with customer details
+    const salesInvoices = await Invoice.find(matchQuery)
+      .populate('customer', 'name gstin')
+      .select('invoiceNumber invoiceDate customer grandTotal subtotal totalGst paymentStatus')
+      .sort({ invoiceDate: -1 });
 
     // Calculate totals
-    const totals = salesData.reduce((acc, item) => ({
-      totalSales: acc.totalSales + item.totalSales,
-      totalInvoices: acc.totalInvoices + item.totalInvoices,
-      totalGST: acc.totalGST + item.totalGST
-    }), { totalSales: 0, totalInvoices: 0, totalGST: 0 });
+    const totalSales = salesInvoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+    const totalGST = salesInvoices.reduce((sum, inv) => sum + (inv.totalGst?.total || 0), 0);
 
     res.json({
-      data: salesData,
-      summary: totals
+      sales: salesInvoices,
+      totalSales,
+      totalInvoices: salesInvoices.length,
+      totalGST
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
