@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Item = require('../models/Item');
 const Customer = require('../models/Customer');
+const Transaction = require('../models/Transaction');
 const { calculateInvoiceTotals } = require('../utils/gstCalculator');
 const { numberToWords } = require('../utils/numberToWords');
 
@@ -256,6 +257,24 @@ exports.updatePaymentStatus = async (req, res) => {
     if (!invoice.payments) {
       invoice.payments = [];
     }
+
+    // Create linked transaction record
+    const transaction = await Transaction.create({
+      transactionType: invoice.invoiceType === 'sale' ? 'payment_received' : 'payment_made',
+      reference: 'invoice',
+      referenceId: invoice._id,
+      referenceModel: 'Invoice',
+      customer: invoice.customer,
+      date: payment.date,
+      amount: payment.amount,
+      paymentMethod: payment.method,
+      description: `Payment for invoice ${invoice.invoiceNumber}${payment.notes ? ': ' + payment.notes : ''}`,
+      category: invoice.invoiceType === 'sale' ? 'revenue' : 'expense',
+      status: 'completed'
+    });
+
+    // Link transaction to payment
+    payment.transactionId = transaction._id;
     invoice.payments.push(payment);
 
     // Calculate total amount paid
@@ -283,6 +302,74 @@ exports.updatePaymentStatus = async (req, res) => {
       // Subtract the payment amount from outstanding balance
       customer.outstandingBalance -= payment.amount;
       await customer.save();
+    }
+
+    await invoice.save();
+
+    const populatedInvoice = await Invoice.findById(invoice._id)
+      .populate('customer')
+      .populate('items.item');
+
+    res.json(populatedInvoice);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a payment from invoice
+// @route   DELETE /api/invoices/:id/payment/:paymentId
+// @access  Private
+exports.deletePayment = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    if (!invoice.payments || invoice.payments.length === 0) {
+      return res.status(400).json({ message: 'No payments found for this invoice' });
+    }
+
+    // Find payment by ID
+    const paymentIndex = invoice.payments.findIndex(
+      p => p._id.toString() === req.params.paymentId
+    );
+
+    if (paymentIndex === -1) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    const payment = invoice.payments[paymentIndex];
+
+    // Delete linked transaction if exists
+    if (payment.transactionId) {
+      await Transaction.findByIdAndDelete(payment.transactionId);
+    }
+
+    // Update customer outstanding balance (add back the payment amount)
+    const customer = await Customer.findById(invoice.customer);
+    if (customer) {
+      customer.outstandingBalance += payment.amount;
+      await customer.save();
+    }
+
+    // Remove payment from array
+    invoice.payments.splice(paymentIndex, 1);
+
+    // Recalculate totals
+    const newAmountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+    invoice.amountPaid = newAmountPaid;
+    invoice.balanceDue = invoice.grandTotal - newAmountPaid;
+
+    // Recalculate payment status
+    if (invoice.balanceDue <= 0) {
+      invoice.paymentStatus = 'paid';
+      invoice.balanceDue = 0;
+    } else if (invoice.amountPaid > 0) {
+      invoice.paymentStatus = 'partial';
+    } else {
+      invoice.paymentStatus = 'unpaid';
     }
 
     await invoice.save();

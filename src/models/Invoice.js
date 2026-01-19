@@ -119,7 +119,11 @@ const invoiceSchema = new mongoose.Schema({
       default: Date.now
     },
     reference: String,
-    notes: String
+    notes: String,
+    transactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Transaction'
+    }
   }],
   amountPaid: {
     type: Number,

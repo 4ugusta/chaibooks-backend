@@ -6,7 +6,8 @@ const {
   createInvoice,
   updateInvoice,
   deleteInvoice,
-  updatePaymentStatus
+  updatePaymentStatus,
+  deletePayment
 } = require('../controllers/invoiceController');
 const { protect } = require('../middleware/auth');
 const { generateInvoicePDF, generateEWayBillPDF } = require('../utils/pdfGenerator');
@@ -25,6 +26,7 @@ router.route('/:id')
   .delete(deleteInvoice);
 
 router.patch('/:id/payment', updatePaymentStatus);
+router.delete('/:id/payment/:paymentId', deletePayment);
 
 // PDF Generation
 router.get('/:id/pdf', async (req, res) => {
