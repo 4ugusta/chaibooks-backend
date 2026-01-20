@@ -154,20 +154,22 @@ const invoiceSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Auto-increment invoice number and initialize balanceDue
-invoiceSchema.pre('save', async function(next) {
+// Auto-generate invoice number before validation (so 'required' check passes)
+invoiceSchema.pre('validate', async function(next) {
   if (this.isNew && !this.invoiceNumber) {
     const prefix = this.invoiceType === 'sale' ? 'INV' : 'PUR';
     const year = new Date().getFullYear().toString().slice(-2);
     const count = await this.constructor.countDocuments({ invoiceType: this.invoiceType });
     this.invoiceNumber = `${prefix}${year}${String(count + 1).padStart(5, '0')}`;
   }
+  next();
+});
 
-  // Initialize balanceDue on creation
+// Initialize balanceDue on creation
+invoiceSchema.pre('save', function(next) {
   if (this.isNew) {
     this.balanceDue = this.grandTotal;
   }
-
   next();
 });
 
