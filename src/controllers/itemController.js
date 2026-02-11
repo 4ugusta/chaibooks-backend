@@ -9,7 +9,7 @@ exports.getItems = async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const query = { user: req.user._id };
 
     if (req.query.category) query.category = req.query.category;
     if (req.query.status) query.status = req.query.status;
@@ -45,7 +45,7 @@ exports.getItems = async (req, res) => {
 // @access  Private
 exports.getItem = async (req, res) => {
   try {
-    const item = await Item.findById(req.params.id);
+    const item = await Item.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
@@ -62,6 +62,7 @@ exports.getItem = async (req, res) => {
 // @access  Private
 exports.createItem = async (req, res) => {
   try {
+    req.body.user = req.user._id;
     const item = await Item.create(req.body);
     res.status(201).json(item);
   } catch (error) {
@@ -74,8 +75,8 @@ exports.createItem = async (req, res) => {
 // @access  Private
 exports.updateItem = async (req, res) => {
   try {
-    const item = await Item.findByIdAndUpdate(
-      req.params.id,
+    const item = await Item.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
       req.body,
       { new: true, runValidators: true }
     );
@@ -95,7 +96,7 @@ exports.updateItem = async (req, res) => {
 // @access  Private
 exports.deleteItem = async (req, res) => {
   try {
-    const item = await Item.findByIdAndDelete(req.params.id);
+    const item = await Item.findOneAndDelete({ _id: req.params.id, user: req.user._id });
 
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
@@ -113,7 +114,7 @@ exports.deleteItem = async (req, res) => {
 exports.updateStock = async (req, res) => {
   try {
     const { quantity, weight, bags, operation } = req.body;
-    const item = await Item.findById(req.params.id);
+    const item = await Item.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });

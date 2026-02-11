@@ -48,10 +48,14 @@ const invoiceItemSchema = new mongoose.Schema({
 });
 
 const invoiceSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   invoiceNumber: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   invoiceType: {
     type: String,
@@ -159,7 +163,7 @@ invoiceSchema.pre('validate', async function(next) {
   if (this.isNew && !this.invoiceNumber) {
     const prefix = this.invoiceType === 'sale' ? 'INV' : 'PUR';
     const year = new Date().getFullYear().toString().slice(-2);
-    const count = await this.constructor.countDocuments({ invoiceType: this.invoiceType });
+    const count = await this.constructor.countDocuments({ user: this.user, invoiceType: this.invoiceType });
     this.invoiceNumber = `${prefix}${year}${String(count + 1).padStart(5, '0')}`;
   }
   next();
@@ -174,9 +178,9 @@ invoiceSchema.pre('save', function(next) {
 });
 
 // Index for faster queries
-// Note: invoiceNumber already has a unique index from the schema definition
-invoiceSchema.index({ customer: 1 });
-invoiceSchema.index({ invoiceDate: -1 });
-invoiceSchema.index({ invoiceType: 1 });
+invoiceSchema.index({ user: 1, invoiceNumber: 1 }, { unique: true });
+invoiceSchema.index({ user: 1, customer: 1 });
+invoiceSchema.index({ user: 1, invoiceDate: -1 });
+invoiceSchema.index({ user: 1, invoiceType: 1 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

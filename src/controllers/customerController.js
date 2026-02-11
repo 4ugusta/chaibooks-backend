@@ -9,7 +9,8 @@ exports.getCustomers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const query = req.query.status ? { status: req.query.status } : {};
+    const query = { user: req.user._id };
+    if (req.query.status) query.status = req.query.status;
 
     // Search functionality
     if (req.query.search) {
@@ -43,7 +44,7 @@ exports.getCustomers = async (req, res) => {
 // @access  Private
 exports.getCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
@@ -60,6 +61,7 @@ exports.getCustomer = async (req, res) => {
 // @access  Private
 exports.createCustomer = async (req, res) => {
   try {
+    req.body.user = req.user._id;
     const customer = await Customer.create(req.body);
     res.status(201).json(customer);
   } catch (error) {
@@ -72,8 +74,8 @@ exports.createCustomer = async (req, res) => {
 // @access  Private
 exports.updateCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndUpdate(
-      req.params.id,
+    const customer = await Customer.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
       req.body,
       { new: true, runValidators: true }
     );
@@ -93,7 +95,7 @@ exports.updateCustomer = async (req, res) => {
 // @access  Private
 exports.deleteCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndDelete(req.params.id);
+    const customer = await Customer.findOneAndDelete({ _id: req.params.id, user: req.user._id });
 
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });

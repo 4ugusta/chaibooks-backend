@@ -10,7 +10,7 @@ exports.getSalesReport = async (req, res) => {
   try {
     const { startDate, endDate, customer } = req.query;
 
-    const matchQuery = { invoiceType: 'sale', status: { $ne: 'cancelled' } };
+    const matchQuery = { user: req.user._id, invoiceType: 'sale', status: { $ne: 'cancelled' } };
 
     if (startDate || endDate) {
       matchQuery.invoiceDate = {};
@@ -48,7 +48,7 @@ exports.getPurchaseReport = async (req, res) => {
   try {
     const { startDate, endDate, groupBy = 'day' } = req.query;
 
-    const matchQuery = { invoiceType: 'purchase', status: { $ne: 'cancelled' } };
+    const matchQuery = { user: req.user._id, invoiceType: 'purchase', status: { $ne: 'cancelled' } };
 
     if (startDate || endDate) {
       matchQuery.invoiceDate = {};
@@ -103,7 +103,7 @@ exports.getGSTReport = async (req, res) => {
   try {
     const { startDate, endDate, type = 'both' } = req.query;
 
-    const matchQuery = { status: { $ne: 'cancelled' } };
+    const matchQuery = { user: req.user._id, status: { $ne: 'cancelled' } };
 
     if (startDate || endDate) {
       matchQuery.invoiceDate = {};
@@ -168,7 +168,7 @@ exports.getProfitLossReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    const matchQuery = { status: { $ne: 'cancelled' } };
+    const matchQuery = { user: req.user._id, status: { $ne: 'cancelled' } };
 
     if (startDate || endDate) {
       matchQuery.invoiceDate = {};
@@ -201,7 +201,7 @@ exports.getProfitLossReport = async (req, res) => {
     ]);
 
     // Expenses
-    const expenseQuery = { category: 'expense' };
+    const expenseQuery = { user: req.user._id, category: 'expense' };
     if (startDate || endDate) {
       expenseQuery.date = {};
       if (startDate) expenseQuery.date.$gte = new Date(startDate);
@@ -247,7 +247,7 @@ exports.getStockReport = async (req, res) => {
   try {
     const { category, lowStock } = req.query;
 
-    const query = { status: 'active' };
+    const query = { user: req.user._id, status: 'active' };
     if (category) query.category = category;
 
     const items = await Item.find(query).select('name category stock pricing');
@@ -280,7 +280,7 @@ exports.getStockReport = async (req, res) => {
 // @access  Private
 exports.getCustomerReport = async (req, res) => {
   try {
-    const customers = await Customer.find({ status: 'active' })
+    const customers = await Customer.find({ user: req.user._id, status: 'active' })
       .select('name gstin outstandingBalance');
 
     const totalOutstanding = customers.reduce((acc, customer) => {
@@ -289,7 +289,7 @@ exports.getCustomerReport = async (req, res) => {
 
     // Top customers by sales
     const topCustomers = await Invoice.aggregate([
-      { $match: { invoiceType: 'sale', status: { $ne: 'cancelled' } } },
+      { $match: { user: req.user._id, invoiceType: 'sale', status: { $ne: 'cancelled' } } },
       {
         $group: {
           _id: '$customer',

@@ -31,7 +31,7 @@ router.delete('/:id/payment/:paymentId', deletePayment);
 // PDF Generation
 router.get('/:id/pdf', async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
+    const invoice = await Invoice.findOne({ _id: req.params.id, user: req.user._id })
       .populate('customer')
       .populate('items.item');
 
@@ -49,7 +49,7 @@ router.get('/:id/pdf', async (req, res) => {
 // E-Way Bill PDF
 router.get('/:id/eway-bill', async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
+    const invoice = await Invoice.findOne({ _id: req.params.id, user: req.user._id })
       .populate('customer')
       .populate('items.item');
 

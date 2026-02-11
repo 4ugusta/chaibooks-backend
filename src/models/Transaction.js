@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   transactionType: {
     type: String,
     enum: ['sale', 'purchase', 'payment_received', 'payment_made', 'expense'],
@@ -63,9 +68,9 @@ const transactionSchema = new mongoose.Schema({
 });
 
 // Index for faster queries and reports
-transactionSchema.index({ date: -1 });
-transactionSchema.index({ customer: 1 });
-transactionSchema.index({ transactionType: 1 });
-transactionSchema.index({ category: 1 });
+transactionSchema.index({ user: 1 });
+transactionSchema.index({ user: 1, date: -1 });
+transactionSchema.index({ user: 1, customer: 1 });
+transactionSchema.index({ user: 1, transactionType: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

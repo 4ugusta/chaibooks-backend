@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const itemSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   name: {
     type: String,
     required: true,
@@ -100,8 +105,8 @@ itemSchema.pre('save', function(next) {
 });
 
 // Index for faster queries
-itemSchema.index({ name: 1 });
-itemSchema.index({ category: 1 });
-itemSchema.index({ hsnCode: 1 });
+itemSchema.index({ user: 1 });
+itemSchema.index({ user: 1, name: 1 });
+itemSchema.index({ user: 1, category: 1 });
 
 module.exports = mongoose.model('Item', itemSchema);

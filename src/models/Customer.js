@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   name: {
     type: String,
     required: true,
@@ -9,7 +14,6 @@ const customerSchema = new mongoose.Schema({
   gstin: {
     type: String,
     required: true,
-    unique: true,
     uppercase: true,
     match: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
   },
@@ -72,7 +76,7 @@ const customerSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-// Note: gstin already has a unique index from the schema definition
-customerSchema.index({ name: 1 });
+customerSchema.index({ user: 1, gstin: 1 }, { unique: true });
+customerSchema.index({ user: 1, name: 1 });
 
 module.exports = mongoose.model('Customer', customerSchema);

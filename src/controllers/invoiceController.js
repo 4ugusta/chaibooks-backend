@@ -14,7 +14,7 @@ exports.getInvoices = async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const query = { user: req.user._id };
 
     if (req.query.invoiceType) query.invoiceType = req.query.invoiceType;
     if (req.query.status) query.status = req.query.status;
@@ -57,7 +57,7 @@ exports.getInvoices = async (req, res) => {
 // @access  Private
 exports.getInvoice = async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
+    const invoice = await Invoice.findOne({ _id: req.params.id, user: req.user._id })
       .populate('customer')
       .populate('items.item');
 
@@ -78,8 +78,8 @@ exports.createInvoice = async (req, res) => {
   try {
     const { customer, items, invoiceType, discount = 0, isInterState = false } = req.body;
 
-    // Validate customer
-    const customerDoc = await Customer.findById(customer);
+    // Validate customer belongs to this user
+    const customerDoc = await Customer.findOne({ _id: customer, user: req.user._id });
     if (!customerDoc) {
       return res.status(404).json({ message: 'Customer not found' });
     }
@@ -87,7 +87,7 @@ exports.createInvoice = async (req, res) => {
     // Process items and calculate totals
     const processedItems = [];
     for (const item of items) {
-      const itemDoc = await Item.findById(item.item);
+      const itemDoc = await Item.findOne({ _id: item.item, user: req.user._id });
       if (!itemDoc) {
         return res.status(404).json({ message: `Item ${item.item} not found` });
       }
@@ -150,6 +150,7 @@ exports.createInvoice = async (req, res) => {
     // Create invoice
     const invoice = await Invoice.create({
       ...req.body,
+      user: req.user._id,
       items: processedItems,
       subtotal,
       totalGst: {
@@ -185,8 +186,8 @@ exports.createInvoice = async (req, res) => {
 // @access  Private
 exports.updateInvoice = async (req, res) => {
   try {
-    const invoice = await Invoice.findByIdAndUpdate(
-      req.params.id,
+    const invoice = await Invoice.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
       req.body,
       { new: true, runValidators: true }
     )
@@ -208,7 +209,7 @@ exports.updateInvoice = async (req, res) => {
 // @access  Private
 exports.deleteInvoice = async (req, res) => {
   try {
-    const invoice = await Invoice.findByIdAndDelete(req.params.id);
+    const invoice = await Invoice.findOneAndDelete({ _id: req.params.id, user: req.user._id });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
@@ -226,7 +227,7 @@ exports.deleteInvoice = async (req, res) => {
 exports.updatePaymentStatus = async (req, res) => {
   try {
     const { amount, method, date, reference, notes } = req.body;
-    const invoice = await Invoice.findById(req.params.id);
+    const invoice = await Invoice.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
@@ -260,6 +261,7 @@ exports.updatePaymentStatus = async (req, res) => {
 
     // Create linked transaction record
     const transaction = await Transaction.create({
+      user: req.user._id,
       transactionType: invoice.invoiceType === 'sale' ? 'payment_received' : 'payment_made',
       reference: 'invoice',
       referenceId: invoice._id,
@@ -321,7 +323,7 @@ exports.updatePaymentStatus = async (req, res) => {
 // @access  Private
 exports.deletePayment = async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id);
+    const invoice = await Invoice.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });

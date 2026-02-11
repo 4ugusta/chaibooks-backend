@@ -11,7 +11,7 @@ exports.getTransactions = async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const query = { user: req.user._id };
 
     if (req.query.transactionType) query.transactionType = req.query.transactionType;
     if (req.query.category) query.category = req.query.category;
@@ -49,7 +49,7 @@ exports.getTransactions = async (req, res) => {
 // @access  Private
 exports.getTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id)
+    const transaction = await Transaction.findOne({ _id: req.params.id, user: req.user._id })
       .populate('customer');
 
     if (!transaction) {
@@ -68,7 +68,7 @@ exports.getTransaction = async (req, res) => {
 exports.createTransaction = async (req, res) => {
   try {
     // Auto-determine category based on transactionType if not provided
-    const transactionData = { ...req.body };
+    const transactionData = { ...req.body, user: req.user._id };
     if (!transactionData.category) {
       const categoryMap = {
         'payment_received': 'revenue',
@@ -145,8 +145,8 @@ exports.createTransaction = async (req, res) => {
 // @access  Private
 exports.updateTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.findByIdAndUpdate(
-      req.params.id,
+    const transaction = await Transaction.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
       req.body,
       { new: true, runValidators: true }
     ).populate('customer');
@@ -166,7 +166,7 @@ exports.updateTransaction = async (req, res) => {
 // @access  Private
 exports.deleteTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id);
+    const transaction = await Transaction.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
@@ -231,16 +231,16 @@ exports.deleteTransaction = async (req, res) => {
 exports.getTransactionSummary = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const query = {};
+    const matchStage = { user: req.user._id };
 
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
+      matchStage.date = {};
+      if (startDate) matchStage.date.$gte = new Date(startDate);
+      if (endDate) matchStage.date.$lte = new Date(endDate);
     }
 
     const summary = await Transaction.aggregate([
-      { $match: query },
+      { $match: matchStage },
       {
         $group: {
           _id: '$transactionType',
