@@ -1,4 +1,5 @@
 const Item = require('../models/Item');
+const { getErrorMessage } = require('../middleware/errorHandler');
 
 // @desc    Get all items
 // @route   GET /api/items
@@ -36,7 +37,7 @@ exports.getItems = async (req, res) => {
       totalItems: total
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -53,7 +54,7 @@ exports.getItem = async (req, res) => {
 
     res.json(item);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -66,7 +67,7 @@ exports.createItem = async (req, res) => {
     const item = await Item.create(req.body);
     res.status(201).json(item);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -87,7 +88,7 @@ exports.updateItem = async (req, res) => {
 
     res.json(item);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -104,7 +105,7 @@ exports.deleteItem = async (req, res) => {
 
     res.json({ message: 'Item deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -137,6 +138,6 @@ exports.updateStock = async (req, res) => {
     await item.save();
     res.json(item);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };

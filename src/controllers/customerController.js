@@ -1,4 +1,5 @@
 const Customer = require('../models/Customer');
+const { getErrorMessage } = require('../middleware/errorHandler');
 
 // @desc    Get all customers
 // @route   GET /api/customers
@@ -35,7 +36,7 @@ exports.getCustomers = async (req, res) => {
       totalCustomers: total
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -52,7 +53,7 @@ exports.getCustomer = async (req, res) => {
 
     res.json(customer);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -65,7 +66,7 @@ exports.createCustomer = async (req, res) => {
     const customer = await Customer.create(req.body);
     res.status(201).json(customer);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -86,7 +87,7 @@ exports.updateCustomer = async (req, res) => {
 
     res.json(customer);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -103,6 +104,6 @@ exports.deleteCustomer = async (req, res) => {
 
     res.json({ message: 'Customer deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };

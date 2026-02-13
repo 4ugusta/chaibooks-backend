@@ -1,33 +1,42 @@
-// Error handler middleware
-const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
-
-  // Log to console for dev
-  console.error(err);
-
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = 'Resource not found';
-    error = { message, statusCode: 404 };
+// Format Mongoose errors into readable messages
+const formatError = (err) => {
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const fields = Object.values(err.errors).map(e => e.path);
+    return { message: `Please fill in required fields: ${fields.join(', ')}`, statusCode: 400 };
   }
 
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const message = 'Duplicate field value entered';
-    error = { message, statusCode: 400 };
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    return { message: `A record with this ${field} already exists`, statusCode: 400 };
   }
 
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message);
-    error = { message, statusCode: 400 };
+  // Mongoose bad ObjectId
+  if (err.name === 'CastError') {
+    return { message: 'Resource not found', statusCode: 404 };
   }
 
-  res.status(error.statusCode || 500).json({
-    success: false,
-    error: error.message || 'Server Error'
-  });
+  return null;
+};
+
+// Error handler middleware
+const errorHandler = (err, req, res, next) => {
+  console.error(err);
+
+  const formatted = formatError(err);
+  if (formatted) {
+    return res.status(formatted.statusCode).json({ message: formatted.message });
+  }
+
+  res.status(500).json({ message: 'Server Error' });
+};
+
+// Helper for controllers to format error messages in catch blocks
+const getErrorMessage = (err) => {
+  const formatted = formatError(err);
+  return formatted ? formatted.message : err.message;
 };
 
 module.exports = errorHandler;
+module.exports.getErrorMessage = getErrorMessage;

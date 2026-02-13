@@ -4,6 +4,7 @@ const Customer = require('../models/Customer');
 const Transaction = require('../models/Transaction');
 const { calculateInvoiceTotals } = require('../utils/gstCalculator');
 const { numberToWords } = require('../utils/numberToWords');
+const { getErrorMessage } = require('../middleware/errorHandler');
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -48,7 +49,7 @@ exports.getInvoices = async (req, res) => {
       totalInvoices: total
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -67,7 +68,7 @@ exports.getInvoice = async (req, res) => {
 
     res.json(invoice);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -177,7 +178,7 @@ exports.createInvoice = async (req, res) => {
 
     res.status(201).json(populatedInvoice);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -200,7 +201,7 @@ exports.updateInvoice = async (req, res) => {
 
     res.json(invoice);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -217,7 +218,7 @@ exports.deleteInvoice = async (req, res) => {
 
     res.json({ message: 'Invoice deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -314,7 +315,7 @@ exports.updatePaymentStatus = async (req, res) => {
 
     res.json(populatedInvoice);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -382,6 +383,6 @@ exports.deletePayment = async (req, res) => {
 
     res.json(populatedInvoice);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };

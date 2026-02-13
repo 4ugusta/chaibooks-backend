@@ -94,8 +94,8 @@ const itemSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Pre-save middleware to calculate GST components
-itemSchema.pre('save', function(next) {
+// Calculate GST components before validation (so 'required' checks pass)
+itemSchema.pre('validate', function(next) {
   if (this.isModified('gst.rate')) {
     this.gst.cgst = this.gst.rate / 2;
     this.gst.sgst = this.gst.rate / 2;

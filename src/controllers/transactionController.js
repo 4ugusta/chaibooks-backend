@@ -1,6 +1,7 @@
 const Transaction = require('../models/Transaction');
 const Customer = require('../models/Customer');
 const Invoice = require('../models/Invoice');
+const { getErrorMessage } = require('../middleware/errorHandler');
 
 // @desc    Get all transactions
 // @route   GET /api/transactions
@@ -40,7 +41,7 @@ exports.getTransactions = async (req, res) => {
       totalTransactions: total
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -58,7 +59,7 @@ exports.getTransaction = async (req, res) => {
 
     res.json(transaction);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -136,7 +137,7 @@ exports.createTransaction = async (req, res) => {
 
     res.status(201).json(populatedTransaction);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -157,7 +158,7 @@ exports.updateTransaction = async (req, res) => {
 
     res.json(transaction);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -221,7 +222,7 @@ exports.deleteTransaction = async (req, res) => {
 
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -252,6 +253,6 @@ exports.getTransactionSummary = async (req, res) => {
 
     res.json(summary);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: getErrorMessage(error) });
   }
 };
