@@ -101,7 +101,6 @@ exports.createInvoice = async (req, res) => {
         itemName: itemDoc.name,
         hsnCode: itemDoc.hsnCode,
         quantity: item.quantity,
-        weight: item.weight || 0,
         bags: item.bags || 0,
         unit: itemDoc.unit,
         rate: item.rate,
@@ -124,7 +123,6 @@ exports.createInvoice = async (req, res) => {
       // Update stock for sales
       if (invoiceType === 'sale') {
         itemDoc.stock.quantity -= item.quantity;
-        itemDoc.stock.weight -= item.weight || 0;
         itemDoc.stock.bags -= item.bags || 0;
         await itemDoc.save();
       }

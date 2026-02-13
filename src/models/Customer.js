@@ -1,5 +1,16 @@
 const mongoose = require('mongoose');
 
+const addressSchema = new mongoose.Schema({
+  street: String,
+  city: String,
+  state: String,
+  pincode: String,
+  country: {
+    type: String,
+    default: 'India'
+  }
+}, { _id: false });
+
 const customerSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -28,36 +39,9 @@ const customerSchema = new mongoose.Schema({
       trim: true
     }
   },
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    pincode: String,
-    country: {
-      type: String,
-      default: 'India'
-    }
-  },
-  billingAddress: {
-    street: String,
-    city: String,
-    state: String,
-    pincode: String,
-    country: {
-      type: String,
-      default: 'India'
-    }
-  },
-  shippingAddress: {
-    street: String,
-    city: String,
-    state: String,
-    pincode: String,
-    country: {
-      type: String,
-      default: 'India'
-    }
-  },
+  address: addressSchema,
+  billingAddress: addressSchema,
+  shippingAddress: addressSchema,
   creditLimit: {
     type: Number,
     default: 0

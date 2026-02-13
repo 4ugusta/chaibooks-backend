@@ -13,10 +13,6 @@ const invoiceItemSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  weight: {
-    type: Number,
-    default: 0
-  },
   bags: {
     type: Number,
     default: 0
@@ -169,10 +165,20 @@ invoiceSchema.pre('validate', async function(next) {
   next();
 });
 
-// Initialize balanceDue on creation
-invoiceSchema.pre('save', function(next) {
+// Initialize balanceDue on creation and enforce sync
+invoiceSchema.pre('validate', function(next) {
   if (this.isNew) {
     this.balanceDue = this.grandTotal;
+  } else if (this.isModified('amountPaid') || this.isModified('grandTotal')) {
+    this.balanceDue = this.grandTotal - (this.amountPaid || 0);
+    if (this.balanceDue <= 0) {
+      this.balanceDue = 0;
+      this.paymentStatus = 'paid';
+    } else if (this.amountPaid > 0) {
+      this.paymentStatus = 'partial';
+    } else {
+      this.paymentStatus = 'unpaid';
+    }
   }
   next();
 });

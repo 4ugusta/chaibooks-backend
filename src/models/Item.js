@@ -56,23 +56,19 @@ const itemSchema = new mongoose.Schema({
     },
     cgst: {
       type: Number,
-      required: true
+      default: 0
     },
     sgst: {
       type: Number,
-      required: true
+      default: 0
     },
     igst: {
       type: Number,
-      required: true
+      default: 0
     }
   },
   stock: {
     quantity: {
-      type: Number,
-      default: 0
-    },
-    weight: {
       type: Number,
       default: 0
     },

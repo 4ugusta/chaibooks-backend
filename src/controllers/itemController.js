@@ -114,7 +114,7 @@ exports.deleteItem = async (req, res) => {
 // @access  Private
 exports.updateStock = async (req, res) => {
   try {
-    const { quantity, weight, bags, operation } = req.body;
+    const { quantity, bags, operation } = req.body;
     const item = await Item.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!item) {
@@ -123,15 +123,12 @@ exports.updateStock = async (req, res) => {
 
     if (operation === 'add') {
       item.stock.quantity += quantity || 0;
-      item.stock.weight += weight || 0;
       item.stock.bags += bags || 0;
     } else if (operation === 'subtract') {
       item.stock.quantity -= quantity || 0;
-      item.stock.weight -= weight || 0;
       item.stock.bags -= bags || 0;
     } else {
       item.stock.quantity = quantity !== undefined ? quantity : item.stock.quantity;
-      item.stock.weight = weight !== undefined ? weight : item.stock.weight;
       item.stock.bags = bags !== undefined ? bags : item.stock.bags;
     }
 
