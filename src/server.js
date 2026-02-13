@@ -16,16 +16,14 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(helmet()); // Security headers
-app.use(compression()); // Compress responses
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL?.trim().replace(/\/+$/, ''),
   'http://localhost:5173'
 ].filter(Boolean);
 
+// CORS must come before helmet so preflight OPTIONS requests are handled first
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -34,6 +32,8 @@ app.use(cors({
   },
   credentials: true
 }));
+app.use(helmet());
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
