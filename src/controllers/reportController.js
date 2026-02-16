@@ -2,6 +2,13 @@ const Invoice = require('../models/Invoice');
 const Transaction = require('../models/Transaction');
 const Item = require('../models/Item');
 const Customer = require('../models/Customer');
+const User = require('../models/User');
+const {
+  generateSalesReportPDF,
+  generatePurchaseReportPDF,
+  generateStockReportPDF,
+  generateGSTReportPDF
+} = require('../utils/reportPdfGenerator');
 
 // @desc    Get sales report
 // @route   GET /api/reports/sales
@@ -329,6 +336,178 @@ exports.getCustomerReport = async (req, res) => {
       totalOutstanding,
       topCustomers
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ===================== PDF DOWNLOAD ENDPOINTS =====================
+
+/**
+ * Helper: build period string from query params
+ */
+function buildPeriodString(startDate, endDate) {
+  if (startDate && endDate) {
+    return `${new Date(startDate).toLocaleDateString('en-IN')} to ${new Date(endDate).toLocaleDateString('en-IN')}`;
+  }
+  if (startDate) return `From ${new Date(startDate).toLocaleDateString('en-IN')}`;
+  if (endDate) return `Until ${new Date(endDate).toLocaleDateString('en-IN')}`;
+  return 'All Time';
+}
+
+// @desc    Download sales report as PDF
+// @route   GET /api/reports/sales/pdf
+// @access  Private
+exports.getSalesReportPDF = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const user = await User.findById(req.user._id);
+    const businessDetails = user.businessDetails || {};
+
+    const matchQuery = { user: req.user._id, invoiceType: 'sale', status: { $ne: 'cancelled' } };
+    if (startDate || endDate) {
+      matchQuery.invoiceDate = {};
+      if (startDate) matchQuery.invoiceDate.$gte = new Date(startDate);
+      if (endDate) matchQuery.invoiceDate.$lte = new Date(endDate);
+    }
+
+    const invoices = await Invoice.find(matchQuery)
+      .populate('customer', 'name gstin')
+      .select('invoiceNumber invoiceDate customer grandTotal subtotal totalGst paymentStatus')
+      .sort({ invoiceDate: -1 });
+
+    const totalSales = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+    const totalTaxable = invoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
+    const totalGST = invoices.reduce((sum, inv) => sum + (inv.totalGst?.total || 0), 0);
+
+    const period = buildPeriodString(startDate, endDate);
+
+    await generateSalesReportPDF(invoices, {
+      totalSales, totalTaxable, totalGST, totalInvoices: invoices.length
+    }, businessDetails, period, res);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Download purchase report as PDF
+// @route   GET /api/reports/purchases/pdf
+// @access  Private
+exports.getPurchaseReportPDF = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const user = await User.findById(req.user._id);
+    const businessDetails = user.businessDetails || {};
+
+    const matchQuery = { user: req.user._id, invoiceType: 'purchase', status: { $ne: 'cancelled' } };
+    if (startDate || endDate) {
+      matchQuery.invoiceDate = {};
+      if (startDate) matchQuery.invoiceDate.$gte = new Date(startDate);
+      if (endDate) matchQuery.invoiceDate.$lte = new Date(endDate);
+    }
+
+    const invoices = await Invoice.find(matchQuery)
+      .populate('customer', 'name gstin')
+      .select('invoiceNumber invoiceDate customer grandTotal subtotal totalGst paymentStatus')
+      .sort({ invoiceDate: -1 });
+
+    const totalPurchases = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+    const totalTaxable = invoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
+    const totalGST = invoices.reduce((sum, inv) => sum + (inv.totalGst?.total || 0), 0);
+
+    const period = buildPeriodString(startDate, endDate);
+
+    await generatePurchaseReportPDF(invoices, {
+      totalPurchases, totalTaxable, totalGST, totalInvoices: invoices.length
+    }, businessDetails, period, res);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Download stock report as PDF
+// @route   GET /api/reports/stock/pdf
+// @access  Private
+exports.getStockReportPDF = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const businessDetails = user.businessDetails || {};
+
+    const items = await Item.find({ user: req.user._id, status: 'active' })
+      .select('name category stock pricing')
+      .sort({ name: 1 });
+
+    const totalStockValue = items.reduce((acc, item) => {
+      return acc + ((item.stock?.quantity || 0) * (item.pricing?.purchasePrice || 0));
+    }, 0);
+
+    const lowStockItems = items.filter(item =>
+      (item.stock?.quantity || 0) <= (item.stock?.minStockLevel || 0)
+    ).length;
+
+    await generateStockReportPDF(items, {
+      totalItems: items.length, totalStockValue, lowStockItems
+    }, businessDetails, res);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Download GST report (GSTR-3B format) as PDF
+// @route   GET /api/reports/gst/pdf
+// @access  Private
+exports.getGSTReportPDF = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const user = await User.findById(req.user._id);
+    const businessDetails = user.businessDetails || {};
+
+    const matchQuery = { user: req.user._id, status: { $ne: 'cancelled' } };
+    if (startDate || endDate) {
+      matchQuery.invoiceDate = {};
+      if (startDate) matchQuery.invoiceDate.$gte = new Date(startDate);
+      if (endDate) matchQuery.invoiceDate.$lte = new Date(endDate);
+    }
+
+    const gstData = await Invoice.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$invoiceType',
+          totalCGST: { $sum: '$totalGst.cgst' },
+          totalSGST: { $sum: '$totalGst.sgst' },
+          totalIGST: { $sum: '$totalGst.igst' },
+          totalGST: { $sum: '$totalGst.total' },
+          totalTaxableValue: { $sum: '$subtotal' },
+          totalInvoiceValue: { $sum: '$grandTotal' },
+          invoiceCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const gstByRate = await Invoice.aggregate([
+      { $match: matchQuery },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: { invoiceType: '$invoiceType', gstRate: '$items.gst.rate' },
+          taxableValue: { $sum: '$items.amount' },
+          cgst: { $sum: '$items.gst.cgstAmount' },
+          sgst: { $sum: '$items.gst.sgstAmount' },
+          igst: { $sum: '$items.gst.igstAmount' },
+          totalGst: { $sum: '$items.gst.totalGstAmount' },
+          totalValue: { $sum: '$items.total' }
+        }
+      },
+      { $sort: { '_id.invoiceType': 1, '_id.gstRate': 1 } }
+    ]);
+
+    const period = buildPeriodString(startDate, endDate);
+
+    await generateGSTReportPDF({
+      summary: gstData,
+      detailedByRate: gstByRate
+    }, businessDetails, period, res);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
