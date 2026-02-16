@@ -217,8 +217,7 @@ async function generateStockReportPDF(items, summary, businessDetails, res) {
   y += 16;
   doc.fontSize(8).font('Helvetica');
   doc.text(`Total Items: ${summary.totalItems}`, PAGE_LEFT, y);
-  doc.text(`Stock Value: Rs.${formatINR(summary.totalStockValue)}`, 200, y);
-  doc.text(`Low Stock Items: ${summary.lowStockItems}`, 380, y);
+  doc.text(`Low Stock Items: ${summary.lowStockItems}`, 200, y);
   y += 22;
 
   const cols = [
