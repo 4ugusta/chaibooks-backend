@@ -218,6 +218,18 @@ exports.getProfitLossReport = async (req, res) => {
       }
     ]);
 
+    // Collected and due amounts from sale invoices
+    const collectionData = await Invoice.aggregate([
+      { $match: { ...matchQuery, invoiceType: 'sale' } },
+      {
+        $group: {
+          _id: null,
+          totalCollected: { $sum: { $ifNull: ['$amountPaid', 0] } },
+          totalDue: { $sum: { $ifNull: ['$balanceDue', 0] } }
+        }
+      }
+    ]);
+
     const revenue = salesRevenue[0]?.totalRevenue || 0;
     const cost = purchaseCosts[0]?.totalCost || 0;
     const expense = expenses[0]?.totalExpenses || 0;
@@ -233,7 +245,9 @@ exports.getProfitLossReport = async (req, res) => {
       netProfit,
       profitMargin: parseFloat(profitMargin),
       gstCollected: salesRevenue[0]?.totalGST || 0,
-      gstPaid: purchaseCosts[0]?.totalGST || 0
+      gstPaid: purchaseCosts[0]?.totalGST || 0,
+      totalCollected: collectionData[0]?.totalCollected || 0,
+      totalDue: collectionData[0]?.totalDue || 0
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
