@@ -30,7 +30,13 @@ const userSchema = new mongoose.Schema({
     address: String,
     phone: String,
     email: String,
-    logo: String
+    logo: String,
+    bankAccount: {
+      accountNumber: String,
+      ifscCode: { type: String, uppercase: true },
+      bankName: String,
+      branchName: String
+    }
   },
   status: {
     type: String,

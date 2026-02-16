@@ -24,9 +24,15 @@ const customerSchema = new mongoose.Schema({
   },
   gstin: {
     type: String,
-    required: true,
     uppercase: true,
-    match: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+    trim: true,
+    match: [/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GSTIN format']
+  },
+  pan: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    match: [/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format']
   },
   contact: {
     phone: {
@@ -59,8 +65,17 @@ const customerSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Require at least one of GSTIN or PAN
+customerSchema.pre('validate', function(next) {
+  if (!this.gstin && !this.pan) {
+    return next(new Error('Either GSTIN or PAN is required'));
+  }
+  next();
+});
+
 // Index for faster queries
-customerSchema.index({ user: 1, gstin: 1 }, { unique: true });
+customerSchema.index({ user: 1, gstin: 1 }, { unique: true, partialFilterExpression: { gstin: { $type: 'string' } } });
+customerSchema.index({ user: 1, pan: 1 }, { unique: true, partialFilterExpression: { pan: { $type: 'string' } } });
 customerSchema.index({ user: 1, name: 1 });
 
 module.exports = mongoose.model('Customer', customerSchema);

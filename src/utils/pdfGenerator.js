@@ -32,10 +32,17 @@ async function generateInvoicePDF(invoice, businessDetails, res) {
 
   // Bill To
   doc.fontSize(12).text('Bill To:', 50, 160);
-  doc.fontSize(10)
-    .text(invoice.customer.name, 50, 180)
-    .text(`GSTIN: ${invoice.customer.gstin}`, 50, 195)
-    .text(invoice.customer.contact.phone, 50, 210);
+  doc.fontSize(10).text(invoice.customer.name, 50, 180);
+  let billToY = 195;
+  if (invoice.customer.gstin) {
+    doc.text(`GSTIN: ${invoice.customer.gstin}`, 50, billToY);
+    billToY += 15;
+  }
+  if (invoice.customer.pan) {
+    doc.text(`PAN: ${invoice.customer.pan}`, 50, billToY);
+    billToY += 15;
+  }
+  doc.text(invoice.customer.contact.phone, 50, billToY);
 
   if (invoice.customer.address) {
     doc.text(`${invoice.customer.address.street || ''}`, 50, 225);
@@ -131,11 +138,29 @@ async function generateInvoicePDF(invoice, businessDetails, res) {
   if (invoice.termsAndConditions) {
     doc.fontSize(10).font('Helvetica-Bold').text('Terms & Conditions:', 50, yPosition);
     doc.font('Helvetica').text(invoice.termsAndConditions, 50, yPosition + 15, { width: 500 });
+    yPosition += 40;
+  }
+
+  // Bank Details
+  const bank = businessDetails.bankAccount;
+  if (bank && bank.accountNumber) {
+    if (yPosition > 680) {
+      doc.addPage();
+      yPosition = 50;
+    }
+    doc.fontSize(10).font('Helvetica-Bold').text('Bank Details:', 50, yPosition);
+    yPosition += 15;
+    doc.font('Helvetica');
+    if (bank.bankName) { doc.text(`Bank: ${bank.bankName}`, 50, yPosition); yPosition += 15; }
+    if (bank.branchName) { doc.text(`Branch: ${bank.branchName}`, 50, yPosition); yPosition += 15; }
+    doc.text(`A/C No: ${bank.accountNumber}`, 50, yPosition); yPosition += 15;
+    if (bank.ifscCode) { doc.text(`IFSC: ${bank.ifscCode}`, 50, yPosition); yPosition += 15; }
   }
 
   // Signature
-  doc.text('For ' + (businessDetails.businessName || 'ChaiBooks'), 400, 720);
-  doc.text('Authorized Signatory', 400, 750);
+  const sigY = Math.max(yPosition + 20, 720);
+  doc.font('Helvetica').text('For ' + (businessDetails.businessName || 'ChaiBooks'), 400, sigY);
+  doc.text('Authorized Signatory', 400, sigY + 30);
 
   doc.end();
 }
@@ -184,8 +209,9 @@ async function generateEWayBillPDF(invoice, businessDetails, eWayBillData, res) 
   // To (Recipient) Details
   doc.fontSize(12).font('Helvetica-Bold').text('To (Recipient):', 50, doc.y);
   doc.fontSize(10).font('Helvetica')
-    .text(invoice.customer.name, 50, doc.y + 5)
-    .text(`GSTIN: ${invoice.customer.gstin}`, 50, doc.y + 5);
+    .text(invoice.customer.name, 50, doc.y + 5);
+  if (invoice.customer.gstin) doc.text(`GSTIN: ${invoice.customer.gstin}`, 50, doc.y + 5);
+  if (invoice.customer.pan) doc.text(`PAN: ${invoice.customer.pan}`, 50, doc.y + 5);
 
   if (invoice.customer.address) {
     doc.text(`${invoice.customer.address.street || ''}, ${invoice.customer.address.city || ''}`, 50, doc.y + 5);
