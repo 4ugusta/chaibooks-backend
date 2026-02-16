@@ -256,14 +256,6 @@ async function generateStockReportPDF(items, summary, businessDetails, res) {
     y += ROW_HEIGHT;
   });
 
-  y = checkPage(doc, y);
-  drawLine(doc, y - 2);
-  y += 4;
-  doc.font('Helvetica-Bold').fontSize(8);
-  doc.text(`Total Stock Value: Rs.${formatINR(summary.totalStockValue)}`, PAGE_LEFT, y, {
-    width: PAGE_WIDTH, align: 'right'
-  });
-
   doc.end();
 }
 
