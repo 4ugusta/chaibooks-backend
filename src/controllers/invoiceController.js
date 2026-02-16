@@ -208,11 +208,47 @@ exports.updateInvoice = async (req, res) => {
 // @access  Private
 exports.deleteInvoice = async (req, res) => {
   try {
-    const invoice = await Invoice.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    const invoice = await Invoice.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
     }
+
+    // Restore stock for sale invoices
+    if (invoice.invoiceType === 'sale') {
+      for (const item of invoice.items) {
+        if (item.item) {
+          await Item.findByIdAndUpdate(item.item, {
+            $inc: {
+              'stock.quantity': item.quantity,
+              'stock.bags': item.bags || 0
+            }
+          });
+        }
+      }
+    }
+
+    // Reverse customer outstanding balance for sale invoices
+    if (invoice.invoiceType === 'sale') {
+      const customer = await Customer.findById(invoice.customer);
+      if (customer) {
+        // Remove the unpaid portion (grandTotal - amountPaid) from outstanding
+        customer.outstandingBalance -= invoice.balanceDue || (invoice.grandTotal - (invoice.amountPaid || 0));
+        await customer.save();
+      }
+    }
+
+    // Delete linked payment transactions
+    if (invoice.payments && invoice.payments.length > 0) {
+      const transactionIds = invoice.payments
+        .filter(p => p.transactionId)
+        .map(p => p.transactionId);
+      if (transactionIds.length > 0) {
+        await Transaction.deleteMany({ _id: { $in: transactionIds } });
+      }
+    }
+
+    await invoice.deleteOne();
 
     res.json({ message: 'Invoice deleted successfully' });
   } catch (error) {
