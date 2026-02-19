@@ -65,10 +65,27 @@ const customerSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Require at least one of GSTIN or PAN
+// Convert empty strings to undefined so partial unique indexes ignore them
 customerSchema.pre('validate', function(next) {
+  if (typeof this.gstin === 'string' && this.gstin.trim() === '') this.gstin = undefined;
+  if (typeof this.pan === 'string' && this.pan.trim() === '') this.pan = undefined;
+
   if (!this.gstin && !this.pan) {
     return next(new Error('Either GSTIN or PAN is required'));
+  }
+  next();
+});
+
+// Also handle findOneAndUpdate (used by updateCustomer)
+customerSchema.pre('findOneAndUpdate', function(next) {
+  const update = this.getUpdate();
+  if (typeof update.gstin === 'string' && update.gstin.trim() === '') {
+    update.gstin = undefined;
+    this.update({}, { $unset: { gstin: 1 } });
+  }
+  if (typeof update.pan === 'string' && update.pan.trim() === '') {
+    update.pan = undefined;
+    this.update({}, { $unset: { pan: 1 } });
   }
   next();
 });

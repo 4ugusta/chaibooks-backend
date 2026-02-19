@@ -72,6 +72,18 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
+// One-time cleanup: convert empty-string gstin/pan to null so unique indexes work
+const Customer = require('./models/Customer');
+(async () => {
+  try {
+    const r1 = await Customer.updateMany({ gstin: '' }, { $unset: { gstin: 1 } });
+    const r2 = await Customer.updateMany({ pan: '' }, { $unset: { pan: 1 } });
+    if (r1.modifiedCount || r2.modifiedCount) {
+      console.log(`Cleaned up empty gstin (${r1.modifiedCount}) / pan (${r2.modifiedCount}) fields`);
+    }
+  } catch (e) { /* ignore if DB not ready yet */ }
+})();
+
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0'; // Listen on all network interfaces (required for Railway/Docker)
 
