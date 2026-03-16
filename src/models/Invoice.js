@@ -159,8 +159,18 @@ invoiceSchema.pre('validate', async function(next) {
   if (this.isNew && !this.invoiceNumber) {
     const prefix = this.invoiceType === 'sale' ? 'INV' : 'PUR';
     const year = new Date().getFullYear().toString().slice(-2);
-    const count = await this.constructor.countDocuments({ user: this.user, invoiceType: this.invoiceType });
-    this.invoiceNumber = `${prefix}${year}${String(count + 1).padStart(5, '0')}`;
+    // Find the highest existing invoice number for this user/type to avoid collisions after deletions
+    const lastInvoice = await this.constructor.findOne(
+      { user: this.user, invoiceType: this.invoiceType },
+      { invoiceNumber: 1 },
+      { sort: { invoiceNumber: -1 } }
+    );
+    let nextNum = 1;
+    if (lastInvoice && lastInvoice.invoiceNumber) {
+      const numPart = parseInt(lastInvoice.invoiceNumber.slice(prefix.length + 2), 10);
+      if (!isNaN(numPart)) nextNum = numPart + 1;
+    }
+    this.invoiceNumber = `${prefix}${year}${String(nextNum).padStart(5, '0')}`;
   }
   next();
 });
