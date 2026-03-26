@@ -42,6 +42,21 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Set to false to re-enable the API
+const APP_ON_HOLD = true;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Block all API requests when app is on hold
+if (APP_ON_HOLD) {
+  app.use('/api', (req, res) => {
+    res.status(503).json({
+      message: 'ChaiBooks is temporarily on hold. Please clear your outstanding balance to resume service.',
+      contact: 'b.augusta1103@gmail.com'
+    });
+  });
+}
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/customers', require('./routes/customers'));
