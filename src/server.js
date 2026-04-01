@@ -44,7 +44,7 @@ if (process.env.NODE_ENV === 'development') {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Set to false to re-enable the API
-const APP_ON_HOLD = true;
+const APP_ON_HOLD = false;
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // Block all API requests when app is on hold
